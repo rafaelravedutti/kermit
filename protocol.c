@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <protocol.h>
+#include <hamming.h>
 
 static unsigned int current_send_seq = 0, current_recv_seq = 0;
 
@@ -80,7 +81,9 @@ char get_vertical_parity(struct kermit_packet *packet) {
 
 int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type) {
   struct kermit_packet packet;
+  char *encoded_packet;
   char crc;
+  unsigned int ep_length;
 
   packet.packet_delim = 0x7E;
   packet.packet_len_seq = ((length & 0x3F) << 2) | ((current_send_seq >> 4) & 0x3);
@@ -90,24 +93,37 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   crc = get_vertical_parity(&packet);
   memcpy(packet.packet_data_crc + length, &crc, sizeof(crc));
 
-  if(send(socket, &packet, packet.packet_length + 4, 0) < 0) {
+  encoded_packet = hamming_encode((char *) &packet, length + 4, &ep_length);
+  encoded_packet[1] = 0x7E;
+
+  if(send(socket, encoded_packet + 1, ep_length - 1, 0) < 0) {
     perror("send");
     return -1;
   }
 
   current_send_seq = (current_send_seq + 1) % MAX_PACKET_SEQ;
+
+  free(encoded_packet);
   return 0;
 }
 
 int recv_kermit_packet(int socket, struct kermit_packet *packet) {
+  char encoded_packet[sizeof(struct kermit_packet) * 2];
+  char *decoded_packet;
   int received = 0;
-  unsigned int length;
+  unsigned int length, dp_length, ep_length;
 
-  while(!received && recv(socket, packet, sizeof(struct kermit_packet), 0) > 0) {
-    if(packet->packet_delim == 0x7E && get_kermit_packet_seq(packet) == current_recv_seq) {
-      length = get_kermit_packet_length(packet);
-      if(get_vertical_parity(packet) == packet->packet_data_crc[length]) {
-        received = 1;
+  while(!received && (ep_length = recv(socket, encoded_packet, sizeof encoded_packet, 0) > 0)) {
+    if(encoded_packet[0] == 0x7E) {
+      decoded_packet = hamming_decode(encoded_packet + 1, ep_length - 1, &dp_length);
+      memcpy(((char *) packet) + 1, decoded_packet, dp_length);
+      free(decoded_packet);
+
+      if(get_kermit_packet_seq(packet) == current_recv_seq) {
+        length = get_kermit_packet_length(packet);
+        if(get_vertical_parity(packet) == packet->packet_data_crc[length]) {
+          received = 1;
+        }
       }
     }
   }
