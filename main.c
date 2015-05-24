@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <protocol.h>
 #include <local.h>
+#include <server.h>
 #include <client.h>
 
 int main(int argc, const char *argv[]) {
@@ -31,13 +33,14 @@ int main(int argc, const char *argv[]) {
     do {
       printf("%s > ", get_current_directory());
       fgets(buffer, sizeof buffer, stdin);
-      // exec_command(s, buffer);
+      // exec_command(socket, buffer);
       send_kermit_packet(socket, buffer, strlen(buffer), 0, NULL);
     } while(strcmp(buffer, "fim") != 0);
   } else if(strcmp(argv[2], "servidor") == 0) {
     do {
-      recv_kermit_packet(socket, &packet, 0);
+      recv_kermit_packet(socket, &packet);
       printf("%s\n", packet.packet_data_crc);
+      // server_listen(socket);
     } while(strcmp(packet.packet_data_crc, "fim") != 0);
   } else {
     printf("USO: %s [interface] [cliente/servidor]\n", argv[0]);
