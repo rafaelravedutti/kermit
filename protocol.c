@@ -122,7 +122,7 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet) {
   int received = 0;
   unsigned int length, dp_length, ep_length;
 
-  while(!received && (ep_length = recv(socket, encoded_packet, sizeof encoded_packet, 0) > 0)) {
+  while(!received && (ep_length = recv(socket, encoded_packet, sizeof(encoded_packet), 0) > 0)) {
     if(encoded_packet[0] == 0x7E) {
       decoded_packet = hamming_decode(encoded_packet + 1, ep_length - 1, &dp_length);
       memcpy(((char *) packet) + 1, decoded_packet, dp_length);

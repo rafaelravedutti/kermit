@@ -29,7 +29,7 @@ void parse_list_options(const char *params, int *all, int *list) {
 }
 
 void init_directory() {
-  getcwd(current_dir, sizeof current_dir);
+  getcwd(current_dir, sizeof(current_dir));
   previous_dir[0] = '\0';
 }
 
@@ -98,7 +98,7 @@ int print_file_info(char *dest, const char *filename, unsigned int size_digits) 
     ownerpasswd = getpwuid(filestat.st_uid);
     groupentry = getgrgid(filestat.st_gid);
     formatperm(fileperm, filestat.st_mode);
-    strftime(modtime, sizeof modtime, "%b %d %H:%M", localtime(&filestat.st_mtime));
+    strftime(modtime, sizeof(modtime), "%b %d %H:%M", localtime(&filestat.st_mtime));
 
     sprintf(dest, "%c%s %ld %s %s", filetype, fileperm, filestat.st_nlink, ownerpasswd->pw_name, groupentry->gr_name);
 
@@ -115,9 +115,9 @@ int change_directory(const char *path, int verbose) {
   unsigned int dir_length;
 
   if(strcmp(path, "-") == 0) {
-    strncpy(new_dir, previous_dir, sizeof new_dir);
-    strncpy(previous_dir, current_dir, sizeof previous_dir);
-    strncpy(current_dir, new_dir, sizeof current_dir);
+    strncpy(new_dir, previous_dir, sizeof(new_dir));
+    strncpy(previous_dir, current_dir, sizeof(previous_dir));
+    strncpy(current_dir, new_dir, sizeof(current_dir));
     return 0;
   }
 
@@ -128,7 +128,7 @@ int change_directory(const char *path, int verbose) {
   }
 
   if(path_dir[0] != '/') {
-    strncpy(new_dir, current_dir, sizeof new_dir);
+    strncpy(new_dir, current_dir, sizeof(new_dir));
   } else {
     new_dir[0] = '\0';
   }
@@ -175,8 +175,8 @@ int change_directory(const char *path, int verbose) {
     dir = strtok(NULL, "/");
   }
 
-  strncpy(previous_dir, current_dir, sizeof previous_dir);
-  strncpy(current_dir, new_dir, sizeof current_dir);
+  strncpy(previous_dir, current_dir, sizeof(previous_dir));
+  strncpy(current_dir, new_dir, sizeof(current_dir));
   free(path_dir);
   return 0;
 }

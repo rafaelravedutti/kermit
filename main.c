@@ -32,7 +32,7 @@ int main(int argc, const char *argv[]) {
   if(strcmp(argv[2], "cliente") == 0) {
     do {
       printf("%s > ", get_current_directory());
-      fgets(buffer, sizeof buffer, stdin);
+      fgets(buffer, sizeof(buffer), stdin);
       // exec_command(socket, buffer);
       send_kermit_packet(socket, buffer, strlen(buffer), 0, NULL);
     } while(strcmp(buffer, "fim") != 0);
