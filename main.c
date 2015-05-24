@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <protocol.h>
+#include <local.h>
+#include <client.h>
 
 int main(int argc, const char *argv[]) {
   struct kermit_packet packet;
-  char buffer[1024];
+  char buffer[MAX_PACKET_DATA];
   char *device;
   int s;
 
@@ -23,10 +25,14 @@ int main(int argc, const char *argv[]) {
 
   s = ConexaoRawSocket(device);
 
+  init_directory();
+
   if(strcmp(argv[2], "cliente") == 0) {
     do {
+      printf("%s > ", get_current_directory());
       fgets(buffer, sizeof buffer, stdin);
-      send_kermit_packet(s, buffer, sizeof buffer, 0);
+      // exec_command(buffer);
+      send_kermit_packet(s, buffer, strlen(buffer), 0);
     } while(strcmp(buffer, "fim") != 0);
   } else if(strcmp(argv[2], "servidor") == 0) {
     do {
