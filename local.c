@@ -181,7 +181,7 @@ int change_directory(const char *path, int verbose) {
   return 0;
 }
 
-char *get_current_directory_list(int all, int list, unsigned int *length, int *error) {
+char *get_current_directory_list(int all, int list, unsigned int *length, char *error) {
   DIR *directory;
   struct dirent *ent;
   struct stat filestat;
@@ -191,6 +191,11 @@ char *get_current_directory_list(int all, int list, unsigned int *length, int *e
 
   *length = 0;
   *error = 0;
+
+  if(access(current_dir, R_OK) == -1) {
+    *error = KERMIT_ERROR_PERM;
+    return NULL;
+  }
 
   directory = opendir(current_dir);
   if(directory != NULL) {

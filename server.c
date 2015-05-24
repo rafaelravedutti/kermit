@@ -7,7 +7,8 @@
 void kermit_server_ls(int socket, const char *params, unsigned int params_length) {
   struct kermit_packet answer;
   char *dirlist, *list_ptr;
-  int all, list, error;
+  char error;
+  int all, list;
   unsigned int list_len;
 
   parse_list_options(params, &all, &list);
@@ -24,6 +25,8 @@ void kermit_server_ls(int socket, const char *params, unsigned int params_length
 
     send_kermit_packet(socket, list_ptr, list_len, PACKET_TYPE_SHOW, &answer);
     send_kermit_packet(socket, "", 0, PACKET_TYPE_END, &answer);
+  } else {
+    send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_SHOW, &answer);
   }
 }
 

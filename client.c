@@ -126,7 +126,8 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
 
 void exec_command(int socket, const char *command) {
   char *cmd, *params, *dup, *dirlist;
-  int all, list, error;
+  char error;
+  int all, list;
   unsigned int length, params_length, list_len;
 
   if(command[0] == '\0' || command[0] == '\n') {
@@ -155,8 +156,15 @@ void exec_command(int socket, const char *command) {
       parse_list_options(params, &all, &list);
 
       dirlist = get_current_directory_list(all, list, &list_len, &error);
-      printf("%s", dirlist);
-      free(dirlist);
+
+      if(error == KERMIT_ERROR_PERM) {
+        printf("Permissão negada!\n");
+      }
+
+      if(dirlist != NULL) {
+        printf("%s", dirlist);
+        free(dirlist);
+      }
 
     } else if(strcmp(cmd, "lcd") == 0) {
       if(params != NULL) {
