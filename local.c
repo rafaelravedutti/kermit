@@ -8,12 +8,25 @@
 #include <grp.h>
 #include <time.h>
 #include <sys/stat.h>
-
-#define ERR_DIR_PERM      (-1)
-#define ERR_DIR_NEXISTS   (-2)
-#define ERR_DIR_MAX_LIM   (-3)
+#include <protocol.h>
 
 static char current_dir[PATH_MAX], previous_dir[PATH_MAX];
+
+void parse_list_options(const char *params, int *all, int *list) {
+  char *p;
+
+  *all = *list = 0;
+
+  if(params != NULL && params[0] == '-') {
+    for(p = (char *) params + 1; *p != '\0' && *p != ' '; ++p) {
+      if(*p == 'a') {
+        *all = 1;
+      } else if(*p == 'l') {
+        *list = 1;
+      }
+    }
+  }
+}
 
 void init_directory() {
   getcwd(current_dir, sizeof current_dir);
@@ -135,11 +148,8 @@ int change_directory(const char *path, int verbose) {
         dir_length += strlen(dir) + 1;
 
         if(dir_length > PATH_MAX) {
-          if(verbose != 0) {
-            fprintf(stdout, "%s/%s: Nome do diretório ultrapassou o tamanho máximo de largura do sistema!\n", current_dir, dir);
-          }
-
-          return ERR_DIR_MAX_LIM;
+          fprintf(stderr, "%s/%s: Nome do diretório ultrapassou o tamanho máximo de largura do sistema!\n", current_dir, dir);
+          return -2;
         }
 
         sprintf(new_dir, "%s/%s", new_dir, dir);
@@ -149,7 +159,7 @@ int change_directory(const char *path, int verbose) {
             fprintf(stdout, "%s/%s: Diretório não encontrado!\n", current_dir, dir);
           }
 
-          return ERR_DIR_NEXISTS;
+          return KERMIT_ERROR_DIR_NFOUND;
         }
 
         if(access(new_dir, X_OK) == -1) {
@@ -157,7 +167,7 @@ int change_directory(const char *path, int verbose) {
             fprintf(stdout, "%s/%s: Você não tem permissão para acessar este diretório!\n", current_dir, dir);
           }
 
-          return ERR_DIR_PERM;
+          return KERMIT_ERROR_PERM;
         }
       }
     }
@@ -171,7 +181,7 @@ int change_directory(const char *path, int verbose) {
   return 0;
 }
 
-char *get_current_directory_list(int all, int list, unsigned int *length) {
+char *get_current_directory_list(int all, int list, unsigned int *length, int *error) {
   DIR *directory;
   struct dirent *ent;
   struct stat filestat;
@@ -180,6 +190,7 @@ char *get_current_directory_list(int all, int list, unsigned int *length) {
   unsigned int size_digits;
 
   *length = 0;
+  *error = 0;
 
   directory = opendir(current_dir);
   if(directory != NULL) {
