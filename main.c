@@ -12,6 +12,7 @@ int main(int argc, const char *argv[]) {
   char buffer[MAX_PACKET_DATA];
   char *device;
   int socket;
+  unsigned int length;
 
   if(argc < 3) {
     printf("USO: %s [interface] [cliente/servidor]\n", argv[0]);
@@ -33,8 +34,12 @@ int main(int argc, const char *argv[]) {
     do {
       printf("%s > ", get_current_directory());
       fgets(buffer, sizeof(buffer), stdin);
+
+      length = strlen(buffer);
+      buffer[length - 1] = '\0';
+
       // exec_command(socket, buffer);
-      send_kermit_packet(socket, buffer, strlen(buffer), 0, NULL);
+      send_kermit_packet(socket, buffer, length, 0, NULL);
     } while(strcmp(buffer, "fim") != 0);
   } else if(strcmp(argv[2], "servidor") == 0) {
     do {
