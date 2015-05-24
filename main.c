@@ -9,7 +9,7 @@ int main(int argc, const char *argv[]) {
   struct kermit_packet packet;
   char buffer[MAX_PACKET_DATA];
   char *device;
-  int s;
+  int socket;
 
   if(argc < 3) {
     printf("USO: %s [interface] [cliente/servidor]\n", argv[0]);
@@ -23,7 +23,7 @@ int main(int argc, const char *argv[]) {
     return -1;
   }
 
-  s = ConexaoRawSocket(device);
+  socket = ConexaoRawSocket(device);
 
   init_directory();
 
@@ -31,19 +31,19 @@ int main(int argc, const char *argv[]) {
     do {
       printf("%s > ", get_current_directory());
       fgets(buffer, sizeof buffer, stdin);
-      // exec_command(buffer);
-      send_kermit_packet(s, buffer, strlen(buffer), 0);
+      // exec_command(s, buffer);
+      send_kermit_packet(socket, buffer, strlen(buffer), 0, NULL);
     } while(strcmp(buffer, "fim") != 0);
   } else if(strcmp(argv[2], "servidor") == 0) {
     do {
-      recv_kermit_packet(s, &packet);
+      recv_kermit_packet(socket, &packet, 0);
       printf("%s\n", packet.packet_data_crc);
     } while(strcmp(packet.packet_data_crc, "fim") != 0);
   } else {
     printf("USO: %s [interface] [cliente/servidor]\n", argv[0]);
   }
 
-  close(s);
+  close(socket);
 
   free(device);
   return 0;

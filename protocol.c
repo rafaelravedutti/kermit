@@ -79,7 +79,7 @@ char get_vertical_parity(struct kermit_packet *packet) {
   return result;
 }
 
-int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type) {
+int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type, struct kermit_packet *answer) {
   struct kermit_packet packet;
   char *encoded_packet;
   char crc;
@@ -96,10 +96,19 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   encoded_packet = hamming_encode((char *) &packet, length + 4, &ep_length);
   encoded_packet[1] = 0x7E;
 
-  if(send(socket, encoded_packet + 1, ep_length - 1, 0) < 0) {
-    perror("send");
-    return -1;
-  }
+  do {
+    if(send(socket, encoded_packet + 1, ep_length - 1, 0) < 0) {
+      perror("send");
+      return -1;
+    }
+
+    if(answer != NULL) {
+      if(wait_kermit_answer(socket, answer) < 0) {
+        printf("Connection Timed Out!\n");
+        return -2;
+      }
+    }
+  } while(answer != NULL && get_kermit_packet_type(answer) == PACKET_TYPE_NACK);
 
   current_send_seq = (current_send_seq + 1) % MAX_PACKET_SEQ;
 
@@ -107,7 +116,7 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   return 0;
 }
 
-int recv_kermit_packet(int socket, struct kermit_packet *packet) {
+int recv_kermit_packet(int socket, struct kermit_packet *packet, char send_answer) {
   char encoded_packet[sizeof(struct kermit_packet) * 2];
   char *decoded_packet;
   int received = 0;
@@ -123,16 +132,54 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet) {
         length = get_kermit_packet_length(packet);
         if(get_vertical_parity(packet) == packet->packet_data_crc[length]) {
           received = 1;
+
+          if(send_answer != 0) {
+            send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+          }
         }
       }
+    }
+
+    if(!received) {
+      send_kermit_packet(socket, "", 0, PACKET_TYPE_NACK, NULL);
     }
   }
 
   if(!received) {
+    perror("recv");
     return -1;
   }
 
   current_recv_seq = (current_recv_seq + 1) % MAX_PACKET_SEQ;
+  return 0;
+}
+
+int wait_kermit_answer(int socket, struct kermit_packet *answer) {
+  recv_kermit_packet(socket, answer, 0);
+  return 0;
+}
+
+int kermit_error(struct kermit_packet *packet) {
+  unsigned char *error;
+
+  if(get_kermit_packet_type(packet) == PACKET_TYPE_ERROR) {
+    error = (unsigned char *) packet->packet_data_crc;
+
+    if(*error == KERMIT_ERROR_PERM) {
+      printf("Permissão negada!\n");
+    } else if(*error == KERMIT_ERROR_DIR_NFOUND) {
+      printf("Diretório inexistente!\n");
+    } else if(*error == KERMIT_ERROR_FULL_DISK) {
+      printf("Não há espaço suficiente em disco!\n");
+    } else if(*error == KERMIT_ERROR_FILE_NFOUND) {
+      printf("Arquivo inexistente!\n");
+    } else {
+      printf("Ocorreu um erro durante a operação!\n");
+    }
+
+    return 1;
+  }
+
   return 0;
 }
 
