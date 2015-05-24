@@ -28,8 +28,11 @@ struct kermit_packet {
 
 int ConexaoRawSocket(char *device);
 
-int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type, struct kermit_packet *answer);
-int recv_kermit_packet(int socket, struct kermit_packet *packet, char send_answer);
 unsigned char get_kermit_packet_length(struct kermit_packet *packet);
 unsigned char get_kermit_packet_seq(struct kermit_packet *packet);
 unsigned char get_kermit_packet_type(struct kermit_packet *packet);
+
+int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type, struct kermit_packet *answer);
+int recv_kermit_packet(int socket, struct kermit_packet *packet);
+int wait_kermit_answer(int socket, struct kermit_packet *answer);
+int kermit_error(struct kermit_packet *packet);

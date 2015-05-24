@@ -17,7 +17,8 @@ void kermit_client_ls(int socket, const char *params, unsigned int params_length
         printf("%s", answer.packet_data_crc);
       }
 
-      recv_kermit_packet(socket, &answer, 1);
+      recv_kermit_packet(socket, &answer);
+      send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
       type = get_kermit_packet_type(&answer);
     }
   }
@@ -86,7 +87,6 @@ void kermit_client_put(int socket, const char *params, unsigned int params_lengt
 
 void kermit_client_get(int socket, const char *params, unsigned int params_length) {
   FILE *fp;
-  char buffer[MAX_PACKET_DATA];
   struct kermit_packet answer;
   unsigned long int filesize;
   unsigned char type;
@@ -107,13 +107,16 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
     filesize = *((unsigned long int *) answer.packet_data_crc);
     send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
 
+    recv_kermit_packet(socket, &answer);
+    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
     type = get_kermit_packet_type(&answer);
     while(type != PACKET_TYPE_END) {
       if(type == PACKET_TYPE_DATA) {
         fwrite(answer.packet_data_crc, sizeof(char), get_kermit_packet_length(&answer), fp);
       }
 
-      recv_kermit_packet(socket, &answer, 1);
+      recv_kermit_packet(socket, &answer);
+      send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
       type = get_kermit_packet_type(&answer);
     }
   }
@@ -121,25 +124,9 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
   fclose(fp);
 }
 
-void parse_list_options(const char *params, int *all, int *list) {
-  char *p;
-
-  *all = *list = 0;
-
-  if(params != NULL && params[0] == '-') {
-    for(p = (char *) params + 1; *p != '\0' && *p != ' '; ++p) {
-      if(*p == 'a') {
-        *all = 1;
-      } else if(*p == 'l') {
-        *list = 1;
-      }
-    }
-  }
-}
-
 void exec_command(int socket, const char *command) {
   char *cmd, *params, *dup, *dirlist;
-  int all, list;
+  int all, list, error;
   unsigned int length, params_length, list_len;
 
   if(command[0] == '\0' || command[0] == '\n') {
@@ -167,7 +154,7 @@ void exec_command(int socket, const char *command) {
     if(strcmp(cmd, "lls") == 0) {
       parse_list_options(params, &all, &list);
 
-      dirlist = get_current_directory_list(all, list, &list_len);
+      dirlist = get_current_directory_list(all, list, &list_len, &error);
       printf("%s", dirlist);
       free(dirlist);
 

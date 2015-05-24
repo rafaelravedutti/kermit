@@ -28,13 +28,13 @@ int ConexaoRawSocket(char *device) {
   }
 
   memset(&ir, 0, sizeof(struct ifreq)); /* dispositivo eth0 */
-  memcpy(ir.ifr_name, device, sizeof(device));
+  memcpy(ir.ifr_name, device, sizeof(ir.ifr_name));
   if(ioctl(soquete, SIOCGIFINDEX, &ir) == -1) {
     perror("ioctl");
     exit(-1);
   }
 
-  memset(&endereco, 0, sizeof(endereco));   /* IP do dispositivo */
+  memset(&endereco, 0, sizeof(endereco)); /* IP do dispositivo */
   endereco.sll_family = AF_PACKET;
   endereco.sll_protocol = htons(ETH_P_ALL);
   endereco.sll_ifindex = ir.ifr_ifindex;
@@ -116,7 +116,7 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   return 0;
 }
 
-int recv_kermit_packet(int socket, struct kermit_packet *packet, char send_answer) {
+int recv_kermit_packet(int socket, struct kermit_packet *packet) {
   char encoded_packet[sizeof(struct kermit_packet) * 2];
   char *decoded_packet;
   int received = 0;
@@ -132,16 +132,12 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet, char send_answe
         length = get_kermit_packet_length(packet);
         if(get_vertical_parity(packet) == packet->packet_data_crc[length]) {
           received = 1;
-
-          if(send_answer != 0) {
-            send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-          }
         }
       }
-    }
 
-    if(!received) {
-      send_kermit_packet(socket, "", 0, PACKET_TYPE_NACK, NULL);
+      if(!received) {
+        send_kermit_packet(socket, "", 0, PACKET_TYPE_NACK, NULL);
+      }
     }
   }
 
@@ -155,15 +151,15 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet, char send_answe
 }
 
 int wait_kermit_answer(int socket, struct kermit_packet *answer) {
-  recv_kermit_packet(socket, answer, 0);
+  recv_kermit_packet(socket, answer);
   return 0;
 }
 
 int kermit_error(struct kermit_packet *packet) {
-  unsigned char *error;
+  char *error;
 
   if(get_kermit_packet_type(packet) == PACKET_TYPE_ERROR) {
-    error = (unsigned char *) packet->packet_data_crc;
+    error = packet->packet_data_crc;
 
     if(*error == KERMIT_ERROR_PERM) {
       printf("Permissão negada!\n");
