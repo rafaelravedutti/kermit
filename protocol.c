@@ -97,7 +97,7 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   encoded_packet[1] = 0x7E;
 
   do {
-    if(send(socket, encoded_packet + 1, ep_length - 1, 0) < 0) {
+    if(send(socket, encoded_packet + 1, ep_length - 1 + 8, 0) < 0) {
       perror("send");
       return -1;
     }
@@ -120,11 +120,11 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet) {
   char encoded_packet[sizeof(struct kermit_packet) * 2];
   char *decoded_packet;
   int received = 0;
-  unsigned int length, dp_length, ep_length;
+  unsigned int length, dp_length;
 
-  while(!received && (ep_length = recv(socket, encoded_packet, sizeof(encoded_packet), 0) > 0)) {
+  while(!received && recv(socket, encoded_packet, sizeof(encoded_packet), 0) > 0) {
     if(encoded_packet[0] == 0x7E) {
-      decoded_packet = hamming_decode(encoded_packet + 1, ep_length - 1, &dp_length);
+      decoded_packet = hamming_decode(encoded_packet + 1, (sizeof(struct kermit_packet) * 2) - 1, &dp_length);
       memcpy(((char *) packet) + 1, decoded_packet, dp_length);
       free(decoded_packet);
 
@@ -194,4 +194,6 @@ void print_kermit_packet(struct kermit_packet *packet) {
           "\tType: %d\n"
           "\tData: %s\n"
           "\tCRC: %x\n", packet->packet_delim, length, get_kermit_packet_seq(packet), get_kermit_packet_type(packet), packet->packet_data_crc, crc);
+
+  packet->packet_data_crc[length] = crc;
 }
