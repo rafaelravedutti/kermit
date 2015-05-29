@@ -14,11 +14,11 @@ void kermit_client_ls(int socket, const char *params, unsigned int params_length
     type = get_kermit_packet_type(&answer);
     while(type != PACKET_TYPE_END) {
       if(type == PACKET_TYPE_SHOW) {
-        printf("%s", answer.packet_data_crc);
+        fprintf(stdout, "%s", answer.packet_data_crc);
       }
 
-      recv_kermit_packet(socket, &answer);
       send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+      recv_kermit_packet(socket, &answer);
       type = get_kermit_packet_type(&answer);
     }
   }
@@ -33,7 +33,7 @@ void kermit_client_cd(int socket, const char *params, unsigned int params_length
   if(!kermit_error(&answer)) {
     type = get_kermit_packet_type(&answer);
     if(type != PACKET_TYPE_OK) {
-      printf("Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
+      fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
     }
   }
 }
@@ -59,7 +59,7 @@ void kermit_client_put(int socket, const char *params, unsigned int params_lengt
   if(!kermit_error(&answer)) {
     type = get_kermit_packet_type(&answer);
     if(type != PACKET_TYPE_OK) {
-      printf("Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
+      fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
     }
 
     send_kermit_packet(socket, (char *) &filesize, sizeof(unsigned long int), PACKET_TYPE_FILESIZE, &answer);
@@ -67,7 +67,7 @@ void kermit_client_put(int socket, const char *params, unsigned int params_lengt
     if(!kermit_error(&answer)) {
       type = get_kermit_packet_type(&answer);
       if(type != PACKET_TYPE_OK) {
-        printf("Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
+        fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
       }
 
       while(filesize > MAX_PACKET_DATA) {
@@ -101,7 +101,7 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
   if(!kermit_error(&answer)) {
     type = get_kermit_packet_type(&answer);
     if(type != PACKET_TYPE_FILESIZE) {
-      printf("Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_FILESIZE, type);
+      fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_FILESIZE, type);
     }
 
     filesize = *((unsigned long int *) answer.packet_data_crc);
@@ -150,7 +150,12 @@ void exec_command(int socket, const char *command) {
 
   if(cmd != NULL) {
     params = strtok(NULL, " ");
-    params_length = strlen(params);
+
+    if(params != NULL) {
+      params_length = strlen(params);
+    } else {
+      params_length = 0;
+    }
 
     if(strcmp(cmd, "lls") == 0) {
       parse_list_options(params, &all, &list);
@@ -158,29 +163,47 @@ void exec_command(int socket, const char *command) {
       dirlist = get_current_directory_list(all, list, &list_len, &error);
 
       if(error == KERMIT_ERROR_PERM) {
-        printf("Permissão negada!\n");
+        fprintf(stdout, "Permissão negada!\n");
       }
 
       if(dirlist != NULL) {
-        printf("%s", dirlist);
+        fprintf(stdout, "%s", dirlist);
         free(dirlist);
       }
 
     } else if(strcmp(cmd, "lcd") == 0) {
       if(params != NULL) {
         change_directory(params, 1);
+      } else {
+        fprintf(stdout, "Sintaxe inválida, use: lcd diretório\n");
       }
 
     } else if(strcmp(cmd, "ls") == 0) {
       kermit_client_ls(socket, params, params_length);
+
     } else if(strcmp(cmd, "cd") == 0) {
-      kermit_client_cd(socket, params, params_length);
+      if(params != NULL) {
+        kermit_client_cd(socket, params, params_length);
+      } else {
+        fprintf(stdout, "Sintaxe inválida, use: cd diretório\n");
+      }
+
     } else if(strcmp(cmd, "put") == 0) {
-      kermit_client_put(socket, params, params_length);
+      if(params != NULL) {
+        kermit_client_put(socket, params, params_length);
+      } else {
+        fprintf(stdout, "Sintaxe inválida, use: put arquivo\n");
+      }
+
     } else if(strcmp(cmd, "get") == 0) {
-      kermit_client_get(socket, params, params_length);
+      if(params != NULL) {
+        kermit_client_get(socket, params, params_length);
+      } else {
+        fprintf(stdout, "Sintaxe inválida, use: get arquivo\n");
+      }
+
     } else {
-      printf("Comando inválido, use:\nlls [-la]\tls[-la]\nlcd [diretório]\tcd [diretório]\nget [arquivo]\tput [arquivo]\n");
+      fprintf(stdout, "Comando inválido, use:\nlls [-la]\tls [-la]\nlcd diretório\tcd diretório\nget arquivo\tput arquivo\n");
     }
   }
 

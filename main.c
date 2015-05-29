@@ -8,7 +8,6 @@
 #include <client.h>
 
 int main(int argc, const char *argv[]) {
-  struct kermit_packet packet;
   char buffer[MAX_PACKET_DATA];
   char *device;
   int socket;
@@ -38,15 +37,10 @@ int main(int argc, const char *argv[]) {
       length = strlen(buffer);
       buffer[length - 1] = '\0';
 
-      // exec_command(socket, buffer);
-      send_kermit_packet(socket, buffer, length, 0, NULL);
+      exec_command(socket, buffer);
     } while(strcmp(buffer, "fim") != 0);
   } else if(strcmp(argv[2], "servidor") == 0) {
-    do {
-      recv_kermit_packet(socket, &packet);
-      printf("%s\n", packet.packet_data_crc);
-      // server_listen(socket);
-    } while(strcmp(packet.packet_data_crc, "fim") != 0);
+    server_listen(socket);
   } else {
     printf("USO: %s [interface] [cliente/servidor]\n", argv[0]);
   }

@@ -1,1 +1,1 @@
-void exec_command(const char *command);
+void exec_command(int socket, const char *command);
