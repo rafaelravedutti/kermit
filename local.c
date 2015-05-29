@@ -82,14 +82,14 @@ unsigned int get_digits(off_t num) {
   return result;
 }
 
-int print_file_info(char *dest, const char *filename, unsigned int size_digits) {
+int print_file_info(char *dest, const char *filename, const char *abs_path, unsigned int size_digits) {
     struct stat filestat;
     struct passwd *ownerpasswd;
     struct group *groupentry;
     char modtime[32], fileperm[10], filetype;
     unsigned int i;
 
-    if(stat(filename, &filestat) == -1) {
+    if(stat(abs_path, &filestat) == -1) {
       perror("stat");
       return 0;
     }
@@ -178,19 +178,20 @@ int change_directory(const char *path, int verbose) {
   strncpy(previous_dir, current_dir, sizeof(previous_dir));
   strncpy(current_dir, new_dir, sizeof(current_dir));
   free(path_dir);
-  return 0;
+  return KERMIT_ERROR_SUCCESS;
 }
 
 char *get_current_directory_list(int all, int list, unsigned int *length, char *error) {
   DIR *directory;
   struct dirent *ent;
   struct stat filestat;
+  char absolute_path[PATH_MAX];
   char *list_base, *list_ptr;
   off_t max_size = 0;
   unsigned int size_digits;
 
   *length = 0;
-  *error = 0;
+  *error = KERMIT_ERROR_SUCCESS;
 
   if(access(current_dir, R_OK) == -1) {
     *error = KERMIT_ERROR_PERM;
@@ -202,8 +203,11 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
     while((ent = readdir(directory)) != NULL) {
       if(all != 0 || ent->d_name[0] != '.') {
         if(list != 0) {
-          if(stat(ent->d_name, &filestat) == -1) {
-            perror("stat");
+          sprintf(absolute_path, "%s/%s", current_dir, ent->d_name);
+          if(stat(absolute_path, &filestat) == -1) {
+            char staterr[64];
+            sprintf(staterr, "stat(\"%s\")", ent->d_name);
+            perror(staterr);
             return 0;
           }
 
@@ -230,7 +234,8 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
       while((ent = readdir(directory)) != NULL) {
         if(all != 0 || ent->d_name[0] != '.') {
           if(list != 0) {
-            list_ptr += print_file_info(list_ptr, ent->d_name, size_digits);
+            sprintf(absolute_path, "%s/%s", current_dir, ent->d_name);
+            list_ptr += print_file_info(list_ptr, ent->d_name, absolute_path, size_digits);
           } else {
             list_ptr += sprintf(list_ptr, "%s  ", ent->d_name);
           }
