@@ -5,13 +5,13 @@
 void printbin(unsigned char value, unsigned int nbits) {
     unsigned int i;
 
-    printf("[%d] ", value);
+    fprintf(stdout, "[%d] ", value);
 
     for(i = nbits; i > 0; --i) {
-      printf("%c", ((value >> (i - 1)) & 0x1 ? '1' : '0'));
+      fprintf(stdout, "%c", ((value >> (i - 1)) & 0x1 ? '1' : '0'));
     }
 
-    printf("\n");
+    fprintf(stdout, "\n");
 }
 
 unsigned char get_encoded_bits(unsigned char value) {

@@ -104,7 +104,7 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
 
     if(answer != NULL) {
       if(wait_kermit_answer(socket, answer) < 0) {
-        printf("Connection Timed Out!\n");
+        fprintf(stdout, "Connection Timed Out!\n");
         return -2;
       }
     }
@@ -162,15 +162,15 @@ int kermit_error(struct kermit_packet *packet) {
     error = packet->packet_data_crc;
 
     if(*error == KERMIT_ERROR_PERM) {
-      printf("Permissão negada!\n");
+      fprintf(stdout, "Permissão negada!\n");
     } else if(*error == KERMIT_ERROR_DIR_NFOUND) {
-      printf("Diretório inexistente!\n");
+      fprintf(stdout, "Diretório inexistente!\n");
     } else if(*error == KERMIT_ERROR_FULL_DISK) {
-      printf("Não há espaço suficiente em disco!\n");
+      fprintf(stdout, "Não há espaço suficiente em disco!\n");
     } else if(*error == KERMIT_ERROR_FILE_NFOUND) {
-      printf("Arquivo inexistente!\n");
+      fprintf(stdout, "Arquivo inexistente!\n");
     } else {
-      printf("Ocorreu um erro durante a operação!\n");
+      fprintf(stdout, "Ocorreu um erro durante a operação!\n");
     }
 
     return 1;
