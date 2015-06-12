@@ -18,7 +18,7 @@
 #define KERMIT_ERROR_DIR_NFOUND   (0x1)
 #define KERMIT_ERROR_FULL_DISK    (0x2)
 #define KERMIT_ERROR_FILE_NFOUND  (0x3)
-#define KERMIT_ERROR_SUCCESS      (0xFF)
+#define KERMIT_ERROR_SUCCESS      (0x4)
 
 struct kermit_packet {
   unsigned char packet_delim;
