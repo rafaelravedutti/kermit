@@ -197,3 +197,12 @@ void print_kermit_packet(struct kermit_packet *packet) {
 
   packet->packet_data_crc[length] = crc;
 }
+
+void debug_kermit_packet(struct kermit_packet *packet, unsigned char type) {
+  unsigned char packet_type;
+
+  packet_type = get_kermit_packet_type(packet);
+  if(packet_type != type) {
+    fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", type, packet_type);
+  }
+}

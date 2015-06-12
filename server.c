@@ -22,19 +22,20 @@ void kermit_server_ls(int socket, const char *params, unsigned int params_length
     list_ptr = dirlist;
 
     while(list_len > MAX_PACKET_DATA) {
-      fprintf(stdout, "Sending list block with %u bytes of data...\n", MAX_PACKET_DATA);
+      fprintf(stdout, "Sending list block with %u bytes of data...", MAX_PACKET_DATA);
       send_kermit_packet(socket, list_ptr, MAX_PACKET_DATA, PACKET_TYPE_SHOW, &answer);
+      fprintf(stdout, "Done!\n");
       list_ptr += MAX_PACKET_DATA;
       list_len -= MAX_PACKET_DATA;
     }
 
-    fprintf(stdout, "Sending list block with %u bytes of data...\n", list_len);
+    fprintf(stdout, "Sending list block with %u bytes of data... ", list_len);
     send_kermit_packet(socket, list_ptr, list_len, PACKET_TYPE_SHOW, &answer);
-    fprintf(stdout, "Done! Sending END message...\n");
+    fprintf(stdout, "Done!\nSending END message...\n");
     send_kermit_packet(socket, "", 0, PACKET_TYPE_END, &answer);
     fprintf(stdout, "LIST operation successfully done!\n");
   } else {
-    fprintf(stdout, "LIST operation not possible, sending error over network...\n");
+    fprintf(stdout, "LIST operation not possible, sending error over network... ");
     send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_SHOW, &answer);
     fprintf(stdout, "Done!\n");
   }
@@ -51,7 +52,7 @@ void kermit_server_cd(int socket, const char *params, unsigned int params_length
     send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
     fprintf(stdout, "CD operation successfully done!\n");
   } else {
-    fprintf(stdout, "CD operation not possible, sending error over network...\n");
+    fprintf(stdout, "CD operation not possible, sending error over network... ");
     send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_ERROR, NULL);
     fprintf(stdout, "Done!\n");
   }
@@ -69,9 +70,9 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
     return;
   }
 
-  fprintf(stdout, "File opened for writing, sending OK message over network...\n");
+  fprintf(stdout, "File opened for writing, sending OK message over network... ");
   send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
-  fprintf(stdout, "Done! Waiting for answer (File size packet)...\n");
+  fprintf(stdout, "Done!\nWaiting for answer (File size packet)...\n");
   recv_kermit_packet(socket, &answer);
 
   if(get_kermit_packet_type(&answer) == PACKET_TYPE_FILESIZE) {
@@ -82,20 +83,20 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
 
   fprintf(stdout, "Waiting for answer (File block)...\n");
   recv_kermit_packet(socket, &answer);
-  fprintf(stdout, "GOT answer, sending acknowledgement...\n");
+  fprintf(stdout, "GOT answer, sending acknowledgement... ");
   send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
   fprintf(stdout, "Done!\n");
   type = get_kermit_packet_type(&answer);
   while(type != PACKET_TYPE_END) {
     if(type == PACKET_TYPE_DATA) {
-      fprintf(stdout, "GOT file block with \"%d bytes\" of data! Writing...\n", get_kermit_packet_length(&answer));
+      fprintf(stdout, "GOT file block with \"%d bytes\" of data! Writing... ", get_kermit_packet_length(&answer));
       fwrite(answer.packet_data_crc, sizeof(char), get_kermit_packet_length(&answer), fp);
       fprintf(stdout, "Done!\n");
     }
 
-    fprintf(stdout, "Sending acknowledgement over network...\n");
+    fprintf(stdout, "Sending acknowledgement over network... ");
     send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-    fprintf(stdout, "Done! Waiting for answer (File block or END)...\n");
+    fprintf(stdout, "Done!\nWaiting for answer (File block or END)...\n");
     recv_kermit_packet(socket, &answer);
     type = get_kermit_packet_type(&answer);
   }
@@ -130,16 +131,16 @@ void kermit_server_get(int socket, const char *params, unsigned int params_lengt
     fprintf(stdout, "GOT OK message, transferring data...\n");
     while(filesize > MAX_PACKET_DATA) {
       fread(buffer, sizeof(char), MAX_PACKET_DATA, fp);
-      fprintf(stdout, "Sending file block with \"%u bytes\" of data...\n", MAX_PACKET_DATA);
+      fprintf(stdout, "Sending file block with \"%u bytes\" of data... ", MAX_PACKET_DATA);
       send_kermit_packet(socket, buffer, MAX_PACKET_DATA, PACKET_TYPE_DATA, &answer);
       fprintf(stdout, "Done!\n");
       filesize -= MAX_PACKET_DATA;
     }
 
     fread(buffer, sizeof(char), filesize, fp);
-    fprintf(stdout, "Sending file block with \"%lu bytes\" of data...\n", filesize);
+    fprintf(stdout, "Sending file block with \"%lu bytes\" of data... ", filesize);
     send_kermit_packet(socket, buffer, filesize, PACKET_TYPE_DATA, &answer);
-    fprintf(stdout, "Done! Sending END message over network...\n");
+    fprintf(stdout, "Done!\nSending END message over network...\n");
     send_kermit_packet(socket, "", 0, PACKET_TYPE_END, &answer);
     fprintf(stdout, "GET operation successfully done!\n");
   } else {

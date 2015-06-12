@@ -28,15 +28,11 @@ void kermit_client_ls(int socket, const char *params, unsigned int params_length
 
 void kermit_client_cd(int socket, const char *params, unsigned int params_length) {
   struct kermit_packet answer;
-  unsigned char type;
 
   send_kermit_packet(socket, params, params_length, PACKET_TYPE_CD, &answer);
 
   if(!kermit_error(&answer)) {
-    type = get_kermit_packet_type(&answer);
-    if(type != PACKET_TYPE_OK) {
-      fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
-    }
+    debug_kermit_packet(&answer, PACKET_TYPE_OK);
   }
 }
 
@@ -45,7 +41,6 @@ void kermit_client_put(int socket, const char *params, unsigned int params_lengt
   char buffer[MAX_PACKET_DATA];
   struct kermit_packet answer;
   unsigned long int filesize;
-  unsigned char type;
 
   if((fp = fopen_current_dir(params, "rb")) == NULL) {
     perror("fopen");
@@ -59,18 +54,11 @@ void kermit_client_put(int socket, const char *params, unsigned int params_lengt
   send_kermit_packet(socket, params, params_length, PACKET_TYPE_PUT, &answer);
 
   if(!kermit_error(&answer)) {
-    type = get_kermit_packet_type(&answer);
-    if(type != PACKET_TYPE_OK) {
-      fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
-    }
-
+    debug_kermit_packet(&answer, PACKET_TYPE_OK);
     send_kermit_packet(socket, (char *) &filesize, sizeof(unsigned long int), PACKET_TYPE_FILESIZE, &answer);
 
     if(!kermit_error(&answer)) {
-      type = get_kermit_packet_type(&answer);
-      if(type != PACKET_TYPE_OK) {
-        fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_OK, type);
-      }
+      debug_kermit_packet(&answer, PACKET_TYPE_OK);
 
       while(filesize > MAX_PACKET_DATA) {
         fread(buffer, sizeof(char), MAX_PACKET_DATA, fp);
@@ -101,11 +89,7 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
   send_kermit_packet(socket, params, params_length, PACKET_TYPE_GET, &answer);
 
   if(!kermit_error(&answer)) {
-    type = get_kermit_packet_type(&answer);
-    if(type != PACKET_TYPE_FILESIZE) {
-      fprintf(stdout, "Invalid packet type, expected 0x%x, received 0x%x\n", PACKET_TYPE_FILESIZE, type);
-    }
-
+    debug_kermit_packet(&answer, PACKET_TYPE_FILESIZE);
     filesize = *((unsigned long int *) answer.packet_data_crc);
     send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
 

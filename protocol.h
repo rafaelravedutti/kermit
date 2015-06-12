@@ -37,3 +37,5 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
 int recv_kermit_packet(int socket, struct kermit_packet *packet);
 int wait_kermit_answer(int socket, struct kermit_packet *answer);
 int kermit_error(struct kermit_packet *packet);
+
+void debug_kermit_packet(struct kermit_packet *packet, unsigned char type);
