@@ -8,6 +8,7 @@
 #include <grp.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <protocol.h>
 
 static char current_dir[PATH_MAX], previous_dir[PATH_MAX];
@@ -188,9 +189,9 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
   char absolute_path[PATH_MAX];
   char *list_base, *list_ptr;
   off_t max_size = 0;
-  unsigned int size_digits;
+  unsigned int size_digits, alloc_size;
 
-  *length = 0;
+  alloc_size = 0;
   *error = KERMIT_ERROR_SUCCESS;
 
   if(access(current_dir, R_OK) == -1) {
@@ -208,16 +209,16 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
             char staterr[64];
             sprintf(staterr, "stat(\"%s\")", ent->d_name);
             perror(staterr);
-            return 0;
+            return NULL;
           }
 
           if(max_size < filestat.st_size) {
             max_size = filestat.st_size;
           }
 
-          *length += strlen(ent->d_name) + 64;
+          alloc_size += strlen(ent->d_name) + 64;
         } else {
-          *length += strlen(ent->d_name) + 2;
+          alloc_size += strlen(ent->d_name) + 2;
         }
       }
     }
@@ -226,7 +227,7 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
   }
 
   size_digits = get_digits(max_size);
-  list_base = list_ptr = (char *) malloc(*length + 5);
+  list_base = list_ptr = (char *) malloc(alloc_size + 5);
 
   if(list_base != NULL) {
     directory = opendir(current_dir);
@@ -250,7 +251,9 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
     }
 
     *list_ptr++ = '\0';
+    *length = list_ptr - list_base;
   } else {
+    *length = 0;
     fprintf(stderr, "get_current_directory_list(): Erro ao alocar memória para list!\n");
   }
 
@@ -267,4 +270,19 @@ FILE *fopen_current_dir(const char *path, const char *mode) {
 
   sprintf(absolute_path, "%s/%s", current_dir, path);
   return fopen(absolute_path, mode);
+}
+
+int check_avaiable_space(unsigned int size) {
+  struct statvfs stat;
+
+  if(statvfs(current_dir, &stat) == -1) {
+    perror("statvfs");
+    return -1;
+  }
+
+  if(size > stat.f_bavail * stat.f_bsize) {
+    return KERMIT_ERROR_FULL_DISK;
+  }
+
+  return KERMIT_ERROR_SUCCESS;
 }

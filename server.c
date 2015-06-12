@@ -63,6 +63,7 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
   struct kermit_packet answer;
   unsigned long int filesize;
   unsigned char type;
+  char error;
 
   fprintf(stdout, "PUTTING file \"%s\"...\n", params);
   if((fp = fopen_current_dir(params, "wb")) == NULL) {
@@ -75,34 +76,48 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
   fprintf(stdout, "Done!\nWaiting for answer (File size packet)...\n");
   recv_kermit_packet(socket, &answer);
 
+  error = KERMIT_ERROR_SUCCESS;
+
   if(get_kermit_packet_type(&answer) == PACKET_TYPE_FILESIZE) {
     filesize = *((unsigned long int *) answer.packet_data_crc);
-    fprintf(stdout, "GOT file size \"%lu bytes\", sending OK message over network...\n", filesize);
-    send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
-  }
+    error = check_avaiable_space(filesize);
 
-  fprintf(stdout, "Waiting for answer (File block)...\n");
-  recv_kermit_packet(socket, &answer);
-  fprintf(stdout, "GOT answer, sending acknowledgement... ");
-  send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-  fprintf(stdout, "Done!\n");
-  type = get_kermit_packet_type(&answer);
-  while(type != PACKET_TYPE_END) {
-    if(type == PACKET_TYPE_DATA) {
-      fprintf(stdout, "GOT file block with \"%d bytes\" of data! Writing... ", get_kermit_packet_length(&answer));
-      fwrite(answer.packet_data_crc, sizeof(char), get_kermit_packet_length(&answer), fp);
+    if(error != KERMIT_ERROR_SUCCESS) {
+      fprintf(stdout, "No space avaiable on disk, sending error message... ");
+      send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_SHOW, &answer);
+      fprintf(stdout, "Done!\n");
+    } else {
+      fprintf(stdout, "GOT file size \"%lu bytes\", sending OK message over network... ", filesize);
+      send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
       fprintf(stdout, "Done!\n");
     }
-
-    fprintf(stdout, "Sending acknowledgement over network... ");
-    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-    fprintf(stdout, "Done!\nWaiting for answer (File block or END)...\n");
-    recv_kermit_packet(socket, &answer);
-    type = get_kermit_packet_type(&answer);
   }
 
-  send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-  fprintf(stdout, "PUT operation successfully done!\n");
+  if(error == KERMIT_ERROR_SUCCESS) {
+    fprintf(stdout, "Waiting for answer (File block)...\n");
+    recv_kermit_packet(socket, &answer);
+    fprintf(stdout, "GOT answer, sending acknowledgement... ");
+    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+    fprintf(stdout, "Done!\n");
+    type = get_kermit_packet_type(&answer);
+    while(type != PACKET_TYPE_END) {
+      if(type == PACKET_TYPE_DATA) {
+        fprintf(stdout, "GOT file block with \"%d bytes\" of data! Writing... ", get_kermit_packet_length(&answer));
+        fwrite(answer.packet_data_crc, sizeof(char), get_kermit_packet_length(&answer), fp);
+        fprintf(stdout, "Done!\n");
+      }
+
+      fprintf(stdout, "Sending acknowledgement over network... ");
+      send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+      fprintf(stdout, "Done!\nWaiting for answer (File block or END)...\n");
+      recv_kermit_packet(socket, &answer);
+      type = get_kermit_packet_type(&answer);
+    }
+
+    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+    fprintf(stdout, "PUT operation successfully done!\n");
+  }
+
   fclose(fp);
 }
 

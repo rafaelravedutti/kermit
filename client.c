@@ -6,14 +6,16 @@
 
 void kermit_client_ls(int socket, const char *params, unsigned int params_length) {
   struct kermit_packet answer;
-  unsigned char type;
+  unsigned char type, length;
 
   send_kermit_packet(socket, params, params_length, PACKET_TYPE_LS, &answer);
 
   if(!kermit_error(&answer)) {
     type = get_kermit_packet_type(&answer);
+    length = get_kermit_packet_length(&answer);
     while(type != PACKET_TYPE_END) {
       if(type == PACKET_TYPE_SHOW) {
+        answer.packet_data_crc[length] = '\0';
         fprintf(stdout, "%s", answer.packet_data_crc);
       }
 
@@ -80,6 +82,7 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
   struct kermit_packet answer;
   unsigned long int filesize;
   unsigned char type;
+  char error;
 
   if((fp = fopen_current_dir(params, "wb")) == NULL) {
     perror("fopen");
@@ -91,22 +94,29 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
   if(!kermit_error(&answer)) {
     debug_kermit_packet(&answer, PACKET_TYPE_FILESIZE);
     filesize = *((unsigned long int *) answer.packet_data_crc);
-    send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
+    error = check_avaiable_space(filesize);
 
-    recv_kermit_packet(socket, &answer);
-    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-    type = get_kermit_packet_type(&answer);
-    while(type != PACKET_TYPE_END) {
-      if(type == PACKET_TYPE_DATA) {
-        fwrite(answer.packet_data_crc, sizeof(char), get_kermit_packet_length(&answer), fp);
-      }
+    if(error != KERMIT_ERROR_SUCCESS) {
+      fprintf(stdout, "Não há espaço disponível para salvar este arquivo!\n");
+      send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_ERROR, NULL);
+    } else {
+      send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
 
       recv_kermit_packet(socket, &answer);
       send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
       type = get_kermit_packet_type(&answer);
-    }
+      while(type != PACKET_TYPE_END) {
+        if(type == PACKET_TYPE_DATA) {
+          fwrite(answer.packet_data_crc, sizeof(char), get_kermit_packet_length(&answer), fp);
+        }
 
-    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+        recv_kermit_packet(socket, &answer);
+        send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+        type = get_kermit_packet_type(&answer);
+      }
+
+      send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+    }
   }
 
   fclose(fp);
