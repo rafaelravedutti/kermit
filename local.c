@@ -118,7 +118,7 @@ int change_directory(const char *path, int verbose) {
     strncpy(new_dir, previous_dir, sizeof(new_dir));
     strncpy(previous_dir, current_dir, sizeof(previous_dir));
     strncpy(current_dir, new_dir, sizeof(current_dir));
-    return 0;
+    return KERMIT_ERROR_SUCCESS;
   }
 
   path_dir = strdup(path);
@@ -217,7 +217,7 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
 
           *length += strlen(ent->d_name) + 64;
         } else {
-          *length += strlen(ent->d_name) + 1;
+          *length += strlen(ent->d_name) + 2;
         }
       }
     }
@@ -226,7 +226,7 @@ char *get_current_directory_list(int all, int list, unsigned int *length, char *
   }
 
   size_digits = get_digits(max_size);
-  list_base = list_ptr = (char *) malloc(*length + 2);
+  list_base = list_ptr = (char *) malloc(*length + 5);
 
   if(list_base != NULL) {
     directory = opendir(current_dir);
