@@ -21,6 +21,8 @@ void kermit_client_ls(int socket, const char *params, unsigned int params_length
       recv_kermit_packet(socket, &answer);
       type = get_kermit_packet_type(&answer);
     }
+
+    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
   }
 }
 
@@ -119,6 +121,8 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
       send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
       type = get_kermit_packet_type(&answer);
     }
+
+    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
   }
 
   fclose(fp);

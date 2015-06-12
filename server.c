@@ -100,6 +100,7 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
     type = get_kermit_packet_type(&answer);
   }
 
+  send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
   fprintf(stdout, "PUT operation successfully done!\n");
   fclose(fp);
 }
@@ -121,8 +122,7 @@ void kermit_server_get(int socket, const char *params, unsigned int params_lengt
   filesize = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
-  fprintf(stdout, "File opened for reading (File size: \"%lu bytes\"), waiting for answer...\n", filesize);
-  recv_kermit_packet(socket, &answer);
+  fprintf(stdout, "File opened for reading (File size: \"%lu bytes\")\n", filesize);
   fprintf(stdout, "Sending file size over network and waiting for answer...\n");
   send_kermit_packet(socket, (char *) &filesize, sizeof(unsigned long int), PACKET_TYPE_FILESIZE, &answer);
 
@@ -141,10 +141,11 @@ void kermit_server_get(int socket, const char *params, unsigned int params_lengt
     send_kermit_packet(socket, buffer, filesize, PACKET_TYPE_DATA, &answer);
     fprintf(stdout, "Done! Sending END message over network...\n");
     send_kermit_packet(socket, "", 0, PACKET_TYPE_END, &answer);
-    fprintf(stdout, "Done!\n");
+    fprintf(stdout, "GET operation successfully done!\n");
+  } else {
+    fprintf(stdout, "Error on client side!\n");
   }
 
-  fprintf(stdout, "GET operation successfully done!\n");
   fclose(fp);
 }
 
