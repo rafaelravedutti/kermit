@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <local.h>
 #include <protocol.h>
 
@@ -70,7 +71,7 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
   fprintf(stdout, "PUTTING file \"%s\"...\n", params);
 
   send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
-  recv_kermit_packet(socket, &answer);
+  recv_kermit_packet(socket, &answer, 0);
 
   error = KERMIT_ERROR_SUCCESS;
 
@@ -96,7 +97,7 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
     }
 
     fprintf(stdout, "File opened for writing, waiting for answer (file block)...\n");
-    recv_kermit_packet(socket, &answer);
+    recv_kermit_packet(socket, &answer, 0);
     fprintf(stdout, "GOT answer, sending acknowledgement... ");
     send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
     fprintf(stdout, "Done!\n");
@@ -113,7 +114,7 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
       }
 
       send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-      recv_kermit_packet(socket, &answer);
+      recv_kermit_packet(socket, &answer, 0);
       type = get_kermit_packet_type(&answer);
     }
 
@@ -149,7 +150,7 @@ void kermit_server_get(int socket, const char *params, unsigned int params_lengt
   if(get_kermit_packet_type(&answer) == PACKET_TYPE_OK) {
     fprintf(stdout, "GOT OK message, transferring data...\n");
     while(data_send > MAX_PACKET_DATA) {
-      percent = ((double)(filesize - data_send) / (double)(filesize)) * 100.0;
+      percent = ((double)(filesize - data_send) / (double) filesize) * 100.0;
       fprintf(stdout, "\rReading and sending file... (%.2f%%)", percent);
       fread(buffer, sizeof(char), MAX_PACKET_DATA, fp);
       send_kermit_packet(socket, buffer, MAX_PACKET_DATA, PACKET_TYPE_DATA, &answer);
@@ -173,7 +174,9 @@ void server_listen(int socket) {
   struct kermit_packet packet;
   unsigned char type, length;
 
-  while(!recv_kermit_packet(socket, &packet)) {
+  fprintf(stdout, "Server started and listening...\n");
+
+  while(!recv_kermit_packet(socket, &packet, 0)) {
     type = get_kermit_packet_type(&packet);
     length = get_kermit_packet_length(&packet);
 

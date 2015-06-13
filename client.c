@@ -20,7 +20,7 @@ void kermit_client_ls(int socket, const char *params, unsigned int params_length
       }
 
       send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
-      recv_kermit_packet(socket, &answer);
+      recv_kermit_packet(socket, &answer, 0);
       type = get_kermit_packet_type(&answer);
     }
 
@@ -102,7 +102,7 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
 
       send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
 
-      recv_kermit_packet(socket, &answer);
+      recv_kermit_packet(socket, &answer, 0);
       send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
       type = get_kermit_packet_type(&answer);
       while(type != PACKET_TYPE_END) {
@@ -110,7 +110,7 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
           fwrite(answer.packet_data_crc, sizeof(char), get_kermit_packet_length(&answer), fp);
         }
 
-        recv_kermit_packet(socket, &answer);
+        recv_kermit_packet(socket, &answer, 0);
         send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
         type = get_kermit_packet_type(&answer);
       }
@@ -119,8 +119,6 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
       fclose(fp);
     }
   }
-
-
 }
 
 void exec_command(int socket, const char *command) {

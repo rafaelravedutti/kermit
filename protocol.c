@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
 #include <linux/if.h>
@@ -9,6 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <protocol.h>
 #include <hamming.h>
@@ -20,6 +22,7 @@ int ConexaoRawSocket(char *device) {
   struct ifreq ir;
   struct sockaddr_ll endereco;
   struct packet_mreq mr;
+  struct timeval timeout;
 
   soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /* cria socket */
   if(soquete == -1) {
@@ -47,7 +50,20 @@ int ConexaoRawSocket(char *device) {
   mr.mr_ifindex = ir.ifr_ifindex;
   mr.mr_type = PACKET_MR_PROMISC;
   if(setsockopt(soquete, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) == -1) {
-    perror("setsockopt");
+    perror("setsockopt (modo promiscuo)");
+    exit(-1);
+  }
+
+  timeout.tv_sec = 2;
+  timeout.tv_usec = 0;
+
+  if(setsockopt(soquete, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
+    perror("setsockopt (send timeout)");
+    exit(-1);
+  }
+
+  if(setsockopt(soquete, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+    perror("setsockopt (recv timeout)");
     exit(-1);
   }
 
@@ -83,7 +99,7 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   struct kermit_packet packet;
   char *encoded_packet;
   char crc;
-  unsigned int ep_length;
+  unsigned int ep_length, tries;
 
   packet.packet_delim = 0x7E;
   packet.packet_len_seq = ((length & 0x3F) << 2) | ((current_send_seq >> 4) & 0x3);
@@ -97,32 +113,63 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   encoded_packet[1] = 0x7E;
 
   do {
-    if(send(socket, encoded_packet + 1, ep_length - 1 + 8, 0) < 0) {
-      perror("send");
-      return -1;
+    tries = 0;
+
+    while(send(socket, encoded_packet + 1, ep_length - 1 + 8, 0) <= 0) {
+      if(errno == EAGAIN) {
+        if(tries > 4) {
+          fprintf(stdout, "\rConnection Timed Out!                    \n");
+          exit(-2);
+        }
+
+        fprintf(stdout, "\rPacket not sent, trying again... (%u)", ++tries);
+      } else {
+        perror("send");
+        return -1;
+      }
+    }
+
+    if(tries > 0) {
+      fprintf(stdout, "\r                                  \r");
     }
 
     if(answer != NULL) {
-      if(wait_kermit_answer(socket, answer) < 0) {
-        fprintf(stdout, "Connection Timed Out!\n");
-        return -2;
-      }
+      recv_kermit_packet(socket, answer, 0);
     }
   } while(answer != NULL && get_kermit_packet_type(answer) == PACKET_TYPE_NACK);
 
   current_send_seq = (current_send_seq + 1) % MAX_PACKET_SEQ;
-
   free(encoded_packet);
   return 0;
 }
 
-int recv_kermit_packet(int socket, struct kermit_packet *packet) {
+int recv_kermit_packet(int socket, struct kermit_packet *packet, int flags) {
   char encoded_packet[sizeof(struct kermit_packet) * 2];
   char *decoded_packet;
   int received = 0;
-  unsigned int length, dp_length;
+  unsigned int length, dp_length, tries;
 
-  while(!received && recv(socket, encoded_packet, sizeof(encoded_packet), 0) > 0) {
+  do {
+    tries = 0;
+
+    while(recv(socket, encoded_packet, sizeof(encoded_packet), flags) <= 0) {
+      if(errno == EAGAIN) {
+        if(tries > 4) {
+          fprintf(stdout, "\rConnection Timed Out!                    \n");
+          exit(-2);
+        }
+
+        fprintf(stdout, "\rAnswer not received... (%u)", ++tries);
+      } else {
+        perror("recv");
+        return -1;
+      }
+    }
+
+    if(tries > 0) {
+      fprintf(stdout, "\r                                  \r");
+    }
+
     if(encoded_packet[0] == 0x7E) {
       decoded_packet = hamming_decode(encoded_packet + 1, (sizeof(struct kermit_packet) * 2) - 1, &dp_length);
       memcpy(((char *) packet) + 1, decoded_packet, dp_length);
@@ -139,19 +186,9 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet) {
         send_kermit_packet(socket, "", 0, PACKET_TYPE_NACK, NULL);
       }
     }
-  }
-
-  if(!received) {
-    perror("recv");
-    return -1;
-  }
+  } while(!received);
 
   current_recv_seq = (current_recv_seq + 1) % MAX_PACKET_SEQ;
-  return 0;
-}
-
-int wait_kermit_answer(int socket, struct kermit_packet *answer) {
-  recv_kermit_packet(socket, answer);
   return 0;
 }
 

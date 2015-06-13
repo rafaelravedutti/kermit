@@ -25,9 +25,12 @@ int main(int argc, const char *argv[]) {
     return -1;
   }
 
+  fprintf(stdout, "Initializing RAW socket connection... ");
   socket = ConexaoRawSocket(device);
+  fprintf(stdout, "Done!\n");
 
   init_directory();
+  fprintf(stdout, "Current directory initialized to \"%s\"\n", get_current_directory());
 
   if(strcmp(argv[2], "cliente") == 0) {
     do {
