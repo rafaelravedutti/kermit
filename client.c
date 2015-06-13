@@ -84,11 +84,6 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
   unsigned char type;
   char error;
 
-  if((fp = fopen_current_dir(params, "wb")) == NULL) {
-    perror("fopen");
-    return;
-  }
-
   send_kermit_packet(socket, params, params_length, PACKET_TYPE_GET, &answer);
 
   if(!kermit_error(&answer)) {
@@ -100,6 +95,11 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
       fprintf(stdout, "Não há espaço disponível para salvar este arquivo!\n");
       send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_ERROR, NULL);
     } else {
+      if((fp = fopen_current_dir(params, "wb")) == NULL) {
+        perror("fopen");
+        return;
+      }
+
       send_kermit_packet(socket, "", 0, PACKET_TYPE_OK, NULL);
 
       recv_kermit_packet(socket, &answer);
@@ -116,10 +116,11 @@ void kermit_client_get(int socket, const char *params, unsigned int params_lengt
       }
 
       send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
+      fclose(fp);
     }
   }
 
-  fclose(fp);
+
 }
 
 void exec_command(int socket, const char *command) {
