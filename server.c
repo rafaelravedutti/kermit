@@ -24,7 +24,7 @@ void kermit_server_ls(int socket, const char *params, unsigned int params_length
   if(error == KERMIT_ERROR_SUCCESS) {
     list_ptr = dirlist;
 
-    while(list_len > MAX_PACKET_DATA) {
+    while(list_send > MAX_PACKET_DATA) {
       percent = ((double)(list_len - list_send) / (double) list_len) * 100.0;
       fprintf(stdout, "\rSending list block... (%.2f%%)", percent);
       send_kermit_packet(socket, list_ptr, MAX_PACKET_DATA, PACKET_TYPE_SHOW, &answer);
@@ -118,7 +118,7 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
       type = get_kermit_packet_type(&answer);
     }
 
-    fprintf(stdout, "\rReceiving and writing file... Done!      ");
+    fprintf(stdout, "\rReceiving and writing file... Done!      \n");
     send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK, NULL);
     fprintf(stdout, "PUT operation successfully done!\n");
     fclose(fp);
@@ -159,7 +159,7 @@ void kermit_server_get(int socket, const char *params, unsigned int params_lengt
 
     fread(buffer, sizeof(char), data_send, fp);
     send_kermit_packet(socket, buffer, data_send, PACKET_TYPE_DATA, &answer);
-    fprintf(stdout, "\rReading and sending file... Done!      ");
+    fprintf(stdout, "\rReading and sending file... Done!      \n");
     send_kermit_packet(socket, "", 0, PACKET_TYPE_END, &answer);
     fprintf(stdout, "GET operation successfully done!\n");
   } else {
@@ -176,7 +176,7 @@ void server_listen(int socket) {
 
   fprintf(stdout, "Server started and listening...\n");
 
-  while(!recv_kermit_packet(socket, &packet, 0)) {
+  while(!recv_kermit_packet(socket, &packet, KERMIT_NO_TIMEOUT)) {
     type = get_kermit_packet_type(&packet);
     length = get_kermit_packet_length(&packet);
 

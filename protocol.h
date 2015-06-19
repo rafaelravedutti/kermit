@@ -20,6 +20,9 @@
 #define KERMIT_ERROR_FILE_NFOUND  (0x3)
 #define KERMIT_ERROR_SUCCESS      (0x4)
 
+#define KERMIT_NO_TIMEOUT         (0x1)
+#define KERMIT_ANSWER             (0x2)
+
 struct kermit_packet {
   unsigned char packet_delim;
   unsigned char packet_len_seq;

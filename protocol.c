@@ -57,11 +57,6 @@ int ConexaoRawSocket(char *device) {
   timeout.tv_sec = 2;
   timeout.tv_usec = 0;
 
-  if(setsockopt(soquete, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
-    perror("setsockopt (send timeout)");
-    exit(-1);
-  }
-
   if(setsockopt(soquete, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
     perror("setsockopt (recv timeout)");
     exit(-1);
@@ -99,7 +94,8 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   struct kermit_packet packet;
   char *encoded_packet;
   char crc;
-  unsigned int ep_length, tries;
+  int ret, sent = 0;
+  unsigned int ep_length, tries = 0;
 
   packet.packet_delim = 0x7E;
   packet.packet_len_seq = ((length & 0x3F) << 2) | ((current_send_seq >> 4) & 0x3);
@@ -113,30 +109,37 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   encoded_packet[1] = 0x7E;
 
   do {
-    tries = 0;
-
-    while(send(socket, encoded_packet + 1, ep_length - 1 + 8, 0) <= 0) {
-      if(errno == EAGAIN) {
-        if(tries > 4) {
-          fprintf(stdout, "\rConnection Timed Out!                    \n");
-          exit(-2);
-        }
-
-        fprintf(stdout, "\rPacket not sent, trying again... (%u)", ++tries);
-      } else {
-        perror("send");
-        return -1;
-      }
-    }
-
-    if(tries > 0) {
-      fprintf(stdout, "\r                                  \r");
+    if(send(socket, encoded_packet + 1, ep_length - 1 + 8, 0) < 0 && errno != EAGAIN) {
+      perror("send");
     }
 
     if(answer != NULL) {
-      recv_kermit_packet(socket, answer, 0);
+      ret = recv_kermit_packet(socket, answer, KERMIT_ANSWER);
+
+      if(ret < 0) {
+        return -1;
+      }
+
+      if(ret == 0) {
+        if(get_kermit_packet_type(answer) != PACKET_TYPE_NACK) {
+          sent = 1;
+        }
+      } else {
+        if(tries > 4) {
+          fprintf(stdout, "Connection Timed Out!\n");
+          exit(-2);
+        }
+
+        if(tries == 0) {
+          fprintf(stdout, "\n");
+        }
+
+        fprintf(stdout, "Packet not sent, trying again... (%u)\n", ++tries);
+      }
+    } else {
+      sent = 1;
     }
-  } while(answer != NULL && get_kermit_packet_type(answer) == PACKET_TYPE_NACK);
+  } while(!sent);
 
   current_send_seq = (current_send_seq + 1) % MAX_PACKET_SEQ;
   free(encoded_packet);
@@ -152,22 +155,28 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet, int flags) {
   do {
     tries = 0;
 
-    while(recv(socket, encoded_packet, sizeof(encoded_packet), flags) <= 0) {
-      if(errno == EAGAIN) {
-        if(tries > 4) {
-          fprintf(stdout, "\rConnection Timed Out!                    \n");
-          exit(-2);
+    while(recv(socket, encoded_packet, sizeof(encoded_packet), 0) <= 0) {
+      if(!(flags & KERMIT_NO_TIMEOUT)) {
+        if(errno == EAGAIN) {
+          if(flags & KERMIT_ANSWER) {
+            return 1;
+          }
+
+          if(tries > 4) {
+            fprintf(stdout, "Connection Timed Out!\n");
+            exit(-2);
+          }
+
+          if(tries == 0) {
+            fprintf(stdout, "\n");
+          }
+
+          fprintf(stdout, "Answer not received... (%u)\n", ++tries);
+        } else {
+          perror("recv");
+          return -1;
         }
-
-        fprintf(stdout, "\rAnswer not received... (%u)", ++tries);
-      } else {
-        perror("recv");
-        return -1;
       }
-    }
-
-    if(tries > 0) {
-      fprintf(stdout, "\r                                  \r");
     }
 
     if(encoded_packet[0] == 0x7E) {
