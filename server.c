@@ -81,7 +81,7 @@ void kermit_server_put(int socket, const char *params, unsigned int params_lengt
 
     if(error != KERMIT_ERROR_SUCCESS) {
       fprintf(stdout, "No space avaiable on disk, sending error message... ");
-      send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_SHOW, &answer);
+      send_kermit_packet(socket, &error, sizeof(char), PACKET_TYPE_ERROR, &answer);
       fprintf(stdout, "Done!\n");
     } else {
       fprintf(stdout, "GOT file size \"%lu bytes\", sending OK message over network... ", filesize);
