@@ -90,8 +90,8 @@ char get_vertical_parity(struct kermit_packet *packet) {
   return result;
 }
 
-int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type, struct kermit_packet *answer) {
-  struct kermit_packet packet;
+int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type) {
+  struct kermit_packet packet, answer;
   char *encoded_packet;
   char crc;
   int ret, sent = 0;
@@ -108,40 +108,47 @@ int send_kermit_packet(int socket, const char *data, unsigned int length, unsign
   encoded_packet = hamming_encode((char *) &packet, length + 4, &ep_length);
   encoded_packet[1] = 0x7E;
 
+  if(type == PACKET_TYPE_ACK || type == PACKET_TYPE_NACK) {
+    if(send(socket, encoded_packet + 1, ep_length - 1 + 8, 0) < 0 && errno != EAGAIN) {
+      perror("send");
+    }
+
+    return 0;
+  }
+
   do {
     if(send(socket, encoded_packet + 1, ep_length - 1 + 8, 0) < 0 && errno != EAGAIN) {
       perror("send");
     }
 
-    if(answer != NULL) {
-      ret = recv_kermit_packet(socket, answer, KERMIT_ANSWER);
+    ret = recv_kermit_packet(socket, &answer, KERMIT_ANSWER);
 
-      if(ret < 0) {
-        return -1;
+    if(ret < 0) {
+      return -1;
+    }
+      
+    if(ret == 1) {
+      if(tries > 4) {
+        fprintf(stdout, "Connection Timed Out!\n");
+        exit(-2);
       }
 
-      if(ret == 0) {
-        if(get_kermit_packet_type(answer) != PACKET_TYPE_NACK) {
-          sent = 1;
-        }
-      } else {
-        if(tries > 4) {
-          fprintf(stdout, "Connection Timed Out!\n");
-          exit(-2);
-        }
-
-        if(tries == 0) {
-          fprintf(stdout, "\n");
-        }
-
-        fprintf(stdout, "Packet not sent, trying again... (%u)\n", ++tries);
+      if(tries == 0) {
+        fprintf(stdout, "\n");
       }
-    } else {
+
+      fprintf(stdout, "Packet not sent, trying again... (%u)\n", ++tries);
+    }
+
+    if(get_kermit_packet_type(&answer) == PACKET_TYPE_ACK) {
       sent = 1;
     }
   } while(!sent);
 
-  current_send_seq = (current_send_seq + 1) % MAX_PACKET_SEQ;
+  if(type != PACKET_TYPE_ACK && type != PACKET_TYPE_NACK) {
+    current_send_seq = (current_send_seq + 1) % MAX_PACKET_SEQ;
+  }
+
   free(encoded_packet);
   return 0;
 }
@@ -150,6 +157,7 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet, int flags) {
   char encoded_packet[sizeof(struct kermit_packet) * 2];
   char *decoded_packet;
   int received = 0;
+  unsigned char type, seq;
   unsigned int length, dp_length, tries;
 
   do {
@@ -184,20 +192,34 @@ int recv_kermit_packet(int socket, struct kermit_packet *packet, int flags) {
       memcpy(((char *) packet) + 1, decoded_packet, dp_length);
       free(decoded_packet);
 
-      if(get_kermit_packet_seq(packet) == current_recv_seq) {
-        length = get_kermit_packet_length(packet);
-        if(get_vertical_parity(packet) == packet->packet_data_crc[length]) {
+      length = get_kermit_packet_length(packet);
+      if(get_vertical_parity(packet) == packet->packet_data_crc[length]) {
+        type = get_kermit_packet_type(packet);
+        seq = get_kermit_packet_seq(packet);
+
+        if(type == PACKET_TYPE_ACK || type == PACKET_TYPE_NACK || seq == current_recv_seq) {
           received = 1;
+        }
+
+        if(seq == (current_recv_seq - 1) % MAX_PACKET_SEQ) {
+          send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK);
         }
       }
 
       if(!received) {
-        send_kermit_packet(socket, "", 0, PACKET_TYPE_NACK, NULL);
+        send_kermit_packet(socket, "", 0, PACKET_TYPE_NACK);
       }
     }
   } while(!received);
 
-  current_recv_seq = (current_recv_seq + 1) % MAX_PACKET_SEQ;
+  if(type != PACKET_TYPE_ACK && type != PACKET_TYPE_NACK) {
+    current_recv_seq = (current_recv_seq + 1) % MAX_PACKET_SEQ;
+  }
+
+  if(received && !(flags & KERMIT_ANSWER)) {
+    send_kermit_packet(socket, "", 0, PACKET_TYPE_ACK);
+  }
+
   return 0;
 }
 

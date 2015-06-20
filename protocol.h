@@ -36,7 +36,7 @@ unsigned char get_kermit_packet_length(struct kermit_packet *packet);
 unsigned char get_kermit_packet_seq(struct kermit_packet *packet);
 unsigned char get_kermit_packet_type(struct kermit_packet *packet);
 
-int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type, struct kermit_packet *answer);
+int send_kermit_packet(int socket, const char *data, unsigned int length, unsigned int type);
 int recv_kermit_packet(int socket, struct kermit_packet *packet, int flags);
 int kermit_error(struct kermit_packet *packet);
 
