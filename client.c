@@ -82,7 +82,7 @@ void kermit_client_put(int socket, const char *params, unsigned int params_lengt
     if(!kermit_error(&answer)) {
       debug_kermit_packet(&answer, PACKET_TYPE_OK);
 
-      /* Enquanto houver maior quantidados que o buffer suporta, vai segmentando e transferindo o arquivo */
+      /* Enquanto houver maior quantidade de dados que o buffer suporta, vai segmentando e transferindo o arquivo */
       while(filesize > MAX_PACKET_DATA) {
         fread(buffer, sizeof(char), MAX_PACKET_DATA, fp);
         send_kermit_packet(socket, buffer, MAX_PACKET_DATA, PACKET_TYPE_DATA);
