@@ -7,17 +7,20 @@
 #include <server.h>
 #include <client.h>
 
+/* Função principal */
 int main(int argc, const char *argv[]) {
   char buffer[MAX_PACKET_DATA];
   char *device;
   int socket;
   unsigned int length;
 
+  /* Se não há argumentos suficientes, reporta erro de sintaxe */
   if(argc < 3) {
     printf("USO: %s [interface] [cliente/servidor]\n", argv[0]);
     return 0;
   }
 
+  /* Interface/dispositivo de acesso */
   device = strdup(argv[1]);
 
   if(device == NULL) {
@@ -25,13 +28,16 @@ int main(int argc, const char *argv[]) {
     return -1;
   }
 
+  /* Realiza conexão com o RAW socket */
   fprintf(stdout, "Initializing RAW socket connection... ");
   socket = ConexaoRawSocket(device);
   fprintf(stdout, "Done!\n");
 
+  /* Inicializa diretório corrente */
   init_directory();
   fprintf(stdout, "Current directory initialized to \"%s\"\n", get_current_directory());
 
+  /* Se deve operar em modo cliente, aguarda comandos */
   if(strcmp(argv[2], "cliente") == 0) {
     do {
       printf("%s > ", get_current_directory());
@@ -42,14 +48,18 @@ int main(int argc, const char *argv[]) {
 
       exec_command(socket, buffer);
     } while(strcmp(buffer, "fim") != 0);
+  /* Se deve operar em modo servidor, aguarda requisições */
   } else if(strcmp(argv[2], "servidor") == 0) {
     server_listen(socket);
+  /* Caso não seja especificado nem cliente nem servidor, reporta erro de sintaxe */
   } else {
     printf("USO: %s [interface] [cliente/servidor]\n", argv[0]);
   }
 
+  /* Fecha socket */
   close(socket);
 
+  /* Libera espaço de memória ocupado pelo nome da interface/dispositivo */
   free(device);
   return 0;
 }
